@@ -2,34 +2,56 @@ import { AlertTriangle, FileQuestion, FlaskConical, RefreshCw, Warehouse } from 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../components/ui/StatCard';
-import { getDashboardStats } from '../services/dataService';
+import { dashboardApi } from '../services/apiService';
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const nav = useNavigate();
-  function refresh() { setStats(getDashboardStats()); }
+
+  async function refresh() {
+    setLoading(true); setError(null);
+    try {
+      const data = await dashboardApi.summary();
+      setStats(data);
+    } catch (err) {
+      setError(err.message || 'Failed to load dashboard data.');
+      setStats(null); // Never show zeros as genuine counts on error
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => { refresh(); }, []);
+
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
-        <p className='text-sm text-[#64748B]'>All figures are drawn from local demo storage.</p>
-        <button onClick={refresh} className='flex items-center gap-1.5 text-xs text-[#0D9488] hover:underline'><RefreshCw size={13} /> Refresh</button>
+        <p className='text-sm text-[#64748B]'>Live data from Firebase Cloud Firestore.</p>
+        <button onClick={refresh} disabled={loading} className='flex items-center gap-1.5 text-xs text-[#0D9488] hover:underline disabled:opacity-50'><RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> {loading ? 'Loading…' : 'Refresh'}</button>
       </div>
+      {error && (
+        <div className='bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800'>
+          <strong>Could not load dashboard data.</strong> {error} — Verify the backend is running at http://127.0.0.1:5000
+        </div>
+      )}
       <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4'>
-        <StatCard icon={FlaskConical} label='Active Reagents' value={stats ? stats.active : '—'} status='neutral' />
-        <StatCard icon={Warehouse} label='Storage Compartments' value={stats ? stats.compartments : '—'} status='neutral' />
-        <StatCard icon={AlertTriangle} label='Unresolved Alerts' value={stats ? stats.openAlerts : '—'} status={stats && stats.openAlerts > 0 ? 'danger' : 'neutral'} />
-        <StatCard icon={FileQuestion} label='Missing / Unverified SDS' value={stats ? stats.missingSds : '—'} status={stats && stats.missingSds > 0 ? 'warning' : 'neutral'} />
+        <StatCard icon={FlaskConical} label='Active Reagents' value={loading ? '…' : (error ? 'Error' : stats?.active ?? 0)} status={error ? 'danger' : 'neutral'} />
+        <StatCard icon={Warehouse} label='Storage Locations' value={loading ? '…' : (error ? 'Error' : stats?.locations ?? 0)} status={error ? 'danger' : 'neutral'} />
+        <StatCard icon={AlertTriangle} label='Unresolved Alerts' value={loading ? '…' : (error ? 'Error' : stats?.openAlerts ?? 0)} status={error ? 'danger' : (stats?.openAlerts > 0 ? 'danger' : 'neutral')} />
+        <StatCard icon={FileQuestion} label='Missing / Unverified SDS' value={loading ? '…' : (error ? 'Error' : stats?.missingSds ?? 0)} status={error ? 'danger' : (stats?.missingSds > 0 ? 'warning' : 'neutral')} />
       </div>
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
         <div className='bg-white rounded-xl border border-[#E2E8F0] p-5'>
           <h2 className='text-sm font-semibold text-[#0F172A] mb-3'>Recent Activity</h2>
-          {stats && stats.recentAudit && stats.recentAudit.length > 0 ? (
-            <ul className='divide-y divide-[#E2E8F0]'>{stats.recentAudit.map(e => (
-              <li key={e.id} className='py-2.5 flex items-start gap-3'>
+          {loading ? (<p className='text-sm text-[#94A3B8] text-center py-8'>Loading…</p>) : error ? (<p className='text-sm text-red-600 text-center py-8'>Could not load recent activity.</p>) : stats?.recentAudit?.length > 0 ? (
+            <ul className='divide-y divide-[#E2E8F0]'>{stats.recentAudit.map((e, i) => (
+              <li key={e.id || i} className='py-2.5 flex items-start gap-3'>
                 <span className='w-2 h-2 rounded-full bg-[#0D9488] mt-1.5 shrink-0' />
                 <div className='min-w-0'>
                   <p className='text-sm text-[#0F172A] truncate'>{e.summary}</p>
-                  <p className='text-xs text-[#94A3B8]'>{new Date(e.timestamp).toLocaleString()}</p>
+                  <p className='text-xs text-[#94A3B8]'>{e.timestamp ? new Date(e.timestamp._seconds ? e.timestamp._seconds * 1000 : e.timestamp).toLocaleString() : ''}</p>
                 </div>
               </li>
             ))}</ul>
@@ -46,7 +68,7 @@ export default function Dashboard() {
         </div>
       </div>
       <div className='bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800'>
-        <strong>Safety notice:</strong> Chemical compatibility verification is unavailable until the verified backend engine is connected. Storage assignments are disabled in local demo mode.
+        <strong>Safety notice:</strong> Chemical compatibility verification is unavailable until the verified backend engine is implemented. Storage assignments are blocked.
       </div>
     </div>
   );

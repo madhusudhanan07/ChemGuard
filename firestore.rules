@@ -1,0 +1,14 @@
+rules_version = '2';
+// ChemGuard Firestore Security Rules — Local Development Phase
+// Authentication is not yet implemented.
+// ALL direct client reads and writes are DENIED.
+// The Express backend uses Firebase Admin SDK (bypasses these rules).
+// Deploy these rules with: firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Deny everything from the browser until authentication is implemented.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

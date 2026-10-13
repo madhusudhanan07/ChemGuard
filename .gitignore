@@ -1,0 +1,10 @@
+# Firebase credentials — NEVER COMMIT
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+server/.env
+client/.env
+*.env.local
+server/node_modules/
+client/node_modules/
+dist/
