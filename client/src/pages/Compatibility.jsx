@@ -63,6 +63,10 @@ export default function Compatibility() {
   const [loading,      setLoading]      = useState(false);
   const [dataLoading,  setDataLoading]  = useState(true);
   const [toast,        setToast]        = useState(null);
+  const [reagentAId,   setReagentAId]   = useState('');
+  const [reagentBId,   setReagentBId]   = useState('');
+  const [pairResult,   setPairResult]   = useState(null);
+  const [pairLoading,  setPairLoading]  = useState(false);
   const timer = useRef(null);
 
   function showToast(type, msg) { clearTimeout(timer.current); setToast({ type, message: msg }); timer.current = setTimeout(() => setToast(null), 5000); }
@@ -86,6 +90,16 @@ export default function Compatibility() {
 
   const selReagent = reagents.find(r => r.reagentId === reagentId);
 
+  async function runCompare() {
+    if (!reagentAId || !reagentBId) return;
+    setPairLoading(true); setPairResult(null);
+    try {
+      const data = await compatibilityApi.compare(reagentAId, reagentBId);
+      setPairResult(data);
+    } catch (err) {
+      showToast('error', 'Comparison failed: ' + err.message);
+    } finally { setPairLoading(false); }
+  }
   async function runCheck() {
     if (!reagentId || !compId) return;
     setLoading(true); setResult(null);

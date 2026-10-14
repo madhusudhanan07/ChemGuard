@@ -51,6 +51,7 @@ export const alertsApi = {
   summary:  ()            => request('GET', '/alerts/summary'),
   get:      (id)          => request('GET', '/alerts/' + id),
   evaluate: ()            => request('POST', '/alerts/evaluate'),
+  preview:  ()            => request('GET', '/alerts/preview'),
 };
 
 export const auditApi = {

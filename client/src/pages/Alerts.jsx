@@ -68,6 +68,8 @@ export default function Alerts() {
   const [typeFilter,setTypeFilter]= useState("");
   const [statusFilter,setStatusFilter] = useState("");
   const [toast,     setToast]     = useState(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [preview, setPreview] = useState(null);
   const timer = useRef(null);
 
   function showToast(type, msg) {
@@ -76,25 +78,39 @@ export default function Alerts() {
     timer.current = setTimeout(() => setToast(null), 4000);
   }
 
-  async function load() {
+  async function evaluate() {
+    setEvaluating(true);
+    try {
+      const result = await alertsApi.evaluate();
+      showToast("success", `Evaluated: ${result.created} created, ${result.closed} closed, ${result.updated} updated`);
+      await load(); // Reload alerts after evaluation
+    } catch (err) {
+      showToast("error", "Evaluation failed: " + err.message);
+    } finally {
+      setEvaluating(false);
+    }
+  }
+
+    async function load() {
     setLoading(true); setError(null);
     try {
       const params = {};
       if (statusFilter) params.status = statusFilter;
       if (typeFilter)   params.type   = typeFilter;
-      const [alertData, summaryData] = await Promise.all([
+      const [alertData, summaryData, previewData] = await Promise.all([
         alertsApi.list(params),
         alertsApi.summary(),
+        alertsApi.preview().catch(() => null)
       ]);
       setAlerts(Array.isArray(alertData) ? alertData : []);
       setSummary(summaryData);
+      setPreview(previewData);
     } catch (err) {
       setError(err.message || "Failed to load alerts.");
     } finally {
       setLoading(false);
     }
-  }
-
+  };
   useEffect(() => { load(); }, [statusFilter, typeFilter]);
 
   const shown = search
@@ -132,6 +148,23 @@ export default function Alerts() {
         </div>
       )}
 
+      {preview && preview.total > 0 && (summary.open + summary.pendingReview === 0) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-[#D97706]" />
+            <p className="text-sm font-medium text-amber-800">Current Safety Conditions Detected</p>
+          </div>
+          <p className="text-xs text-[#64748B]">
+            {preview.missingSds.length > 0 && `${preview.missingSds.length} missing SDS`}
+            {preview.missingSds.length > 0 && preview.unverifiedSds.length > 0 && ', '}
+            {preview.unverifiedSds.length > 0 && `${preview.unverifiedSds.length} unverified SDS`}
+          </p>
+          <p className="text-xs text-amber-800">
+            Click <strong>Evaluate Alerts</strong> to generate persistent alert records from these conditions.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
@@ -155,6 +188,11 @@ export default function Alerts() {
           className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#0D9488] border border-teal-200 bg-teal-50 rounded-lg hover:bg-teal-100 disabled:opacity-50 transition-colors">
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
           {loading ? "Loading…" : "Refresh"}
+        </button>
+        <button onClick={evaluate} disabled={evaluating || loading}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#0D9488] text-white rounded-lg hover:bg-[#0F766E] disabled:opacity-50 transition-colors">
+          <ShieldAlert size={13} className={evaluating ? "animate-pulse" : ""} />
+          {evaluating ? "Evaluating…" : "Evaluate Alerts"}
         </button>
       </div>
 

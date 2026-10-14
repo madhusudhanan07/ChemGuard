@@ -48,3 +48,77 @@ export function evaluate(proposedReagent, occupants, compartment) {
   // CCE-6, CCE-8: only here when ALL pairs verified + explicit coverage + no conflict
   return { result: 'NO_DOCUMENTED_CONFLICT', disclaimer: NO_CONFLICT_DISCLAIMER, rulesetVersion: RULESET_VERSION, evaluatedAt };
 }
+
+/**
+ * Compare two reagents directly without compartment context.
+ * Returns compatibility assessment for analytical purposes only.
+ * Does NOT imply physical co-storage or create storage assignments.
+ */
+export function comparePairwise(reagentA, reagentB) {
+  const incompatibilities = [];
+  const reviewTriggers = [];
+  const casA = (reagentA.casNumber || '').trim();
+  const casB = (reagentB.casNumber || '').trim();
+
+  // Check rule-based incompatibility
+  const applicableRules = findApplicableRules(casA, casB);
+  const conflicts = applicableRules.filter(r => r.outcome === 'INCOMPATIBLE');
+  
+  if (conflicts.length > 0) {
+    conflicts.forEach(rule => {
+      incompatibilities.push({
+        reagentAId: reagentA.reagentId,
+        reagentAName: reagentA.chemicalName,
+        reagentACas: casA,
+        reagentBId: reagentB.reagentId,
+        reagentBName: reagentB.chemicalName,
+        reagentBCas: casB,
+        ruleId: rule.ruleId,
+        conflictDescription: rule.conflictDescription,
+        source: rule.source
+      });
+    });
+  }
+
+  // Check data quality triggers
+  if (reagentA.sdsStatus !== 'VERIFIED' || reagentB.sdsStatus !== 'VERIFIED') {
+    reviewTriggers.push({
+      reason: 'UNVERIFIED_SDS',
+      detail: `SDS verification required for both reagents. A: ${reagentA.sdsStatus}, B: ${reagentB.sdsStatus}`
+    });
+  }
+
+  if ((Array.isArray(reagentA.hazardClasses) && reagentA.hazardClasses.includes('UNKNOWN')) ||
+      (Array.isArray(reagentB.hazardClasses) && reagentB.hazardClasses.includes('UNKNOWN'))) {
+    reviewTriggers.push({
+      reason: 'UNKNOWN_HAZARD',
+      detail: 'Hazard class is unknown for one or both reagents.'
+    });
+  }
+
+  if (reagentA.concentration === 'UNKNOWN' || reagentB.concentration === 'UNKNOWN') {
+    reviewTriggers.push({
+      reason: 'UNKNOWN_CONCENTRATION',
+      detail: 'Concentration is unknown for one or both reagents.'
+    });
+  }
+
+  // Check rule coverage
+  if (conflicts.length === 0 && applicableRules.length === 0) {
+    reviewTriggers.push({
+      reason: 'NO_RULE_COVERAGE',
+      detail: 'No verified compatibility rule covers this chemical pair. Absence of a rule does not imply safety.'
+    });
+  }
+
+  const evaluatedAt = new Date().toISOString();
+  const disclaimer = 'This pairwise comparison is for analytical purposes only. It does NOT imply these reagents are physically co-stored or authorize co-storage. Physical storage requires compartment-based assessment and Administrator approval.';
+
+  if (incompatibilities.length > 0) {
+    return { result: 'INCOMPATIBLE', conflicts: incompatibilities, disclaimer, rulesetVersion: RULESET_VERSION, evaluatedAt };
+  }
+  if (reviewTriggers.length > 0) {
+    return { result: 'NEEDS_REVIEW', triggers: reviewTriggers, disclaimer, rulesetVersion: RULESET_VERSION, evaluatedAt };
+  }
+  return { result: 'NO_DOCUMENTED_CONFLICT', disclaimer: NO_CONFLICT_DISCLAIMER + ' ' + disclaimer, rulesetVersion: RULESET_VERSION, evaluatedAt };
+}
