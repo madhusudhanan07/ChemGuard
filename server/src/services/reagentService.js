@@ -1,5 +1,6 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getDb } from '../config/firebase.js';
+import { logEvent, EVENT_TYPE } from './auditService.js';
 
 const CAS_RE = /^\d{2,7}-\d{2}-\d{1}$/;
 const COLL = 'reagents';
@@ -50,6 +51,7 @@ export async function createReagent(fields) {
   if (!dup.empty) { const e = new Error('A reagent with that Container ID already exists.'); e.status = 409; e.code = 'DUPLICATE_CONTAINER_ID'; throw e; }
   const data = { ...fields, containerId: fields.containerId.trim(), casNumber: fields.casNumber.trim(), archived: false, createdAt: now(), updatedAt: now() };
   const ref = await db.collection(COLL).add(data);
+  await logEvent(EVENT_TYPE.REAGENT_CREATE, `Created reagent: ${data.chemicalName} (${data.casNumber})`, { reagentId: ref.id });
   return { reagentId: ref.id, ...data };
 }
 
@@ -64,7 +66,9 @@ export async function updateReagent(id, fields) {
   if (update.containerId) update.containerId = String(update.containerId).trim();
   delete update.reagentId; delete update.createdAt; delete update.archived;
   await db.collection(COLL).doc(id).update(update);
-  return { reagentId: id, ...doc.data(), ...update };
+  const d = doc.data();
+  await logEvent(EVENT_TYPE.REAGENT_UPDATE, `Updated reagent: ${d.chemicalName || 'Unknown'}`, { reagentId: id });
+  return { reagentId: id, ...d, ...update };
 }
 
 export async function archiveReagent(id) {
@@ -75,6 +79,8 @@ export async function archiveReagent(id) {
   const active = await db.collection('storage_assignments').where('reagentId', '==', id).where('status', '==', 'ACTIVE').limit(1).get();
   if (!active.empty) { const e = new Error('Cannot archive: reagent has an active storage assignment. Remove it first.'); e.status = 409; e.code = 'HAS_ACTIVE_ASSIGNMENT'; throw e; }
   await db.collection(COLL).doc(id).update({ archived: true, updatedAt: now() });
+  const d = doc.data();
+  await logEvent(EVENT_TYPE.REAGENT_ARCHIVE, `Archived reagent: ${d.chemicalName || 'Unknown'}`, { reagentId: id });
   return { ok: true };
 }
 

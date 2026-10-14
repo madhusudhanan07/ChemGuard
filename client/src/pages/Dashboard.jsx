@@ -68,7 +68,7 @@ export default function Dashboard() {
         </div>
       </div>
       <div className='bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800'>
-        <strong>Safety notice:</strong> Chemical compatibility verification is unavailable until the verified backend engine is implemented. Storage assignments are blocked.
+        <strong>Safety notice:</strong> The compatibility engine has been implemented with verified rules from authoritative sources. Physical storage assignment writes remain disabled pending Administrator authentication implementation in the final phase.
       </div>
     </div>
   );

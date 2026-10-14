@@ -17,6 +17,7 @@ function validate(f) {
   else if (!CAS_RE.test(f.casNumber.trim())) e.casNumber = 'Format: e.g. 64-19-7';
   if (f.concentration !== 'UNKNOWN' && f.concentration !== '') { const n = Number(f.concentration); if (isNaN(n) || n <= 0) e.concentration = 'Must be positive or UNKNOWN'; }
   if (f.concentration !== 'UNKNOWN' && f.concentration !== '' && !f.concentrationUnit.trim()) e.concentrationUnit = 'Required with numeric concentration';
+  if (f.concentrationUnit.trim() && !f.concentrationUnit.match(/^(%|M|mM|N|g\/L|mg\/mL|% w\/v|% v\/v|ppm|ppb)$/i)) e.concentrationUnit = 'Use standard units: %, M, mM, N, g/L, mg/mL, % w/v, % v/v, ppm, ppb';
   if (f.quantityOnHand === '' || isNaN(Number(f.quantityOnHand)) || Number(f.quantityOnHand) < 0) e.quantityOnHand = 'Non-negative number required';
   if (!f.quantityUnit.trim()) e.quantityUnit = 'Required';
   if (!f.hazardClasses || f.hazardClasses.length === 0) e.hazardClasses = 'Select at least one, or UNKNOWN';

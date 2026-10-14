@@ -69,3 +69,29 @@ export async function deleteLocation(id) {
   await db.collection(COLL).doc(id).update({ active: false, updatedAt: now() });
   return { ok: true };
 }
+
+// Returns all active assignment reagent records for a given compartment.
+// Never interprets a Firestore error as an empty compartment.
+export async function getCompartmentOccupants(compartmentId) {
+  const db = getDb();
+  const compDoc = await db.collection(COLL).doc(compartmentId).get();
+  if (!compDoc.exists) { const e = new Error('Compartment not found.'); e.status = 404; e.code = 'NOT_FOUND'; throw e; }
+  if (compDoc.data().type !== 'COMPARTMENT') { const e = new Error('Location is not a COMPARTMENT.'); e.status = 400; e.code = 'INVALID_LOCATION_TYPE'; throw e; }
+  const assignSnap = await db.collection('storage_assignments')
+    .where('compartmentId', '==', compartmentId)
+    .where('status', '==', 'ACTIVE')
+    .get();
+  const occupantIds = assignSnap.docs.map(d => d.data().reagentId);
+  const occupants = [];
+  if (occupantIds.length > 0) {
+    const docs = await Promise.all(occupantIds.map(id => db.collection('reagents').doc(id).get()));
+    for (const od of docs) {
+      if (od.exists) occupants.push({ reagentId: od.id, ...od.data() });
+    }
+  }
+  return {
+    compartment: { locationId: compDoc.id, ...compDoc.data() },
+    occupants,
+    occupantCount: occupants.length,
+  };
+}

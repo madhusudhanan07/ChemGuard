@@ -9,6 +9,8 @@ import healthRoutes from './routes/healthRoutes.js';
 import reagentRoutes from './routes/reagentRoutes.js';
 import storageRoutes from './routes/storageRoutes.js';
 import compatibilityRoutes from './routes/compatibilityRoutes.js';
+import alertRoutes from './routes/alertRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +38,8 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reagents',  reagentRoutes);
 app.use('/api/storage',   storageRoutes);
 app.use('/api/compatibility', compatibilityRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Catch-all for unknown routes
 app.use((req, res) => {

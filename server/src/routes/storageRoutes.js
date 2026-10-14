@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createLocation, deleteLocation, listLocations, updateLocation } from '../services/storageService.js';
+import { createLocation, deleteLocation, getCompartmentOccupants, listLocations, updateLocation } from '../services/storageService.js';
 
 const router = Router();
 
@@ -32,9 +32,21 @@ router.delete('/locations/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Storage ASSIGNMENT creation is explicitly blocked until the compatibility engine is implemented.
+// GET /api/storage/locations/:id/occupants
+// Returns all active reagent assignments for a compartment.
+// Read-only — does not write to Firestore.
+router.get('/locations/:id/occupants', async (req, res, next) => {
+  try {
+    const data = await getCompartmentOccupants(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+});
+
+// POST /api/storage/assignments
+// Physical storage assignment creation is BLOCKED.
+// Requires: authentication, role enforcement, and full transactional safety validation.
 router.post('/assignments', (req, res) => {
-  res.status(503).json({ success: false, error: { code: 'ENGINE_NOT_READY', message: 'Storage assignment creation requires the verified chemical compatibility engine, which is not yet implemented. Assignments are blocked to prevent unsafe co-storage.' } });
+  res.status(503).json({ success: false, error: { code: 'ENGINE_NOT_READY', message: 'Storage assignment creation requires authentication, role enforcement, and the full verified assignment transaction. Assignments are blocked to prevent unsafe co-storage.' } });
 });
 
 export default router;
